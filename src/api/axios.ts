@@ -5,15 +5,22 @@ interface CustomAxiosRequestConfig extends AxiosRequestConfig {
   skipLogoutOn401?: boolean;
 }
 
+const resolveApiBaseUrl = () => {
+  const configured = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (!configured || configured.trim().length === 0) {
+    return '/api';
+  }
+  return configured.replace(/\/+$/, '');
+};
+
 const api = axios.create({
-  baseURL: '/api',
-  withCredentials: true,           // JWT cookie otomatik gönderilir
+  baseURL: resolveApiBaseUrl(),
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Response interceptor: 401 → logout + login'e yönlendir
 api.interceptors.response.use(
   (response) => response,
   (error) => {
