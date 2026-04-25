@@ -27,7 +27,6 @@ api.interceptors.response.use(
     const config = error.config as CustomAxiosRequestConfig | undefined;
     if (error.response?.status === 401 && !config?.skipLogoutOn401) {
       useAuthStore.getState().clearUser();
-      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
