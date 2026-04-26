@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { AnimatedLogoBackground } from './AnimatedLogoBackground';
+import { BrandLogo } from './BrandLogo';
 
 interface Props {
   children: ReactNode;
@@ -55,6 +57,14 @@ export const AuthLayout = ({ children }: Props) => {
 
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 to-black/85" />
+        <Link
+          to="/"
+          className="absolute left-6 top-6 z-20 inline-flex items-center gap-2 rounded-xl border border-slate-700/70 bg-slate-900/80 px-3 py-2 text-sm font-semibold text-slate-100 transition hover:border-brand-500/50 hover:text-white"
+          aria-label="Ana sayfaya don"
+        >
+          <BrandLogo compact className="h-8 w-auto" />
+          <span>Ana Sayfa</span>
+        </Link>
         <div className="relative z-10 w-full max-w-md">{children}</div>
       </div>
     </div>

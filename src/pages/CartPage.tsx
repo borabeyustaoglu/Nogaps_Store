@@ -2,30 +2,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { StoreLayout } from '../components/StoreLayout';
-import { notifySuccess, notifyError } from '../utils/notify';
+import { notifyError } from '../utils/notify';
 import type { Product } from '../types/product';
 import type { CartItem, CartLine } from '../types/cart';
 import { appendAuditLog } from '../utils/auditLog';
-import { STORAGE_KEYS } from '../constants/storage';
 import { useAuthStore } from '../store/authStore';
 import { readProductsFromStorage, persistProductsToStorage } from '../utils/productStore';
 import { catalogApi } from '../api/catalog';
 import { getProductImage } from '../utils/productImages';
 import { cartApi } from '../api/cart';
 import { getApiErrorMessage } from '../utils/apiError';
+import { readGuestCart, writeGuestCart } from '../utils/guestCart';
 
-const CART_STORAGE_KEY = STORAGE_KEYS.cart;
-
-const readLocalCart = (): CartItem[] => {
-  try {
-    const raw = localStorage.getItem(CART_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as CartItem[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
+const readLocalCart = (): CartItem[] => readGuestCart();
 
 export const CartPage = () => {
   const navigate = useNavigate();
@@ -138,7 +127,7 @@ export const CartPage = () => {
 
   const persistLocalCart = (nextItems: CartItem[]) => {
     setLocalCartItems(nextItems);
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(nextItems));
+    writeGuestCart(nextItems);
     window.dispatchEvent(new Event('nogaps:cart-updated'));
   };
 
@@ -181,7 +170,6 @@ export const CartPage = () => {
   const removeItem = async (productId: number) => {
     if (!authenticated) {
       persistLocalCart(localCartItems.filter((item) => item.productId !== String(productId)));
-      notifySuccess('Urun kaldirildi.');
       return;
     }
 
@@ -190,7 +178,6 @@ export const CartPage = () => {
     try {
       await cartApi.removeFromCart(productId);
       await refreshRemoteCart();
-      notifySuccess('Urun kaldirildi.');
     } catch (error: unknown) {
       notifyError(getApiErrorMessage(error, 'Cart remove request failed.'));
     } finally {
@@ -203,7 +190,6 @@ export const CartPage = () => {
 
     if (!authenticated) {
       persistLocalCart([]);
-      notifySuccess('Sepet temizlendi.');
       return;
     }
 
@@ -212,7 +198,6 @@ export const CartPage = () => {
     try {
       await Promise.all(detailedItems.map((item) => cartApi.removeFromCart(item.productId)));
       await refreshRemoteCart();
-      notifySuccess('Sepet temizlendi.');
     } catch (error: unknown) {
       notifyError(getApiErrorMessage(error, 'Cart clear request failed.'));
     } finally {
@@ -226,7 +211,6 @@ export const CartPage = () => {
       navigate('/login?redirect=/cart');
       return;
     }
-    notifySuccess('Odeme adimina geciliyor.');
     appendAuditLog({
       action: 'checkout',
       module: 'cart',

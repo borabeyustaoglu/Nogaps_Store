@@ -5,24 +5,13 @@ import { StoreLayout } from '../components/StoreLayout';
 import { favoritesApi } from '../api/favorites';
 import type { FavoriteProduct } from '../types/favorite';
 import { getApiErrorMessage } from '../utils/apiError';
-import { notifyError, notifySuccess } from '../utils/notify';
+import { notifyError } from '../utils/notify';
 import { useAuthStore } from '../store/authStore';
 import { cartApi } from '../api/cart';
 import type { CartItem } from '../types/cart';
-import { STORAGE_KEYS } from '../constants/storage';
+import { readGuestCart, writeGuestCart } from '../utils/guestCart';
 
-const CART_STORAGE_KEY = STORAGE_KEYS.cart;
-
-const readCartItems = (): CartItem[] => {
-  try {
-    const raw = localStorage.getItem(CART_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as CartItem[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
+const readCartItems = (): CartItem[] => readGuestCart();
 
 export const FavoritesPage = () => {
   const navigate = useNavigate();
@@ -88,13 +77,12 @@ export const FavoritesPage = () => {
       await favoritesApi.removeFavorite(productId);
       setFavorites((prev) => prev.filter((item) => item.productId !== productId));
       window.dispatchEvent(new Event('nogaps:favorites-updated'));
-      notifySuccess('Urun favorilerden kaldirildi.');
     } catch (error: unknown) {
       notifyError(getApiErrorMessage(error, 'Favori kaldirilamadi.'));
     }
   };
 
-  const addToCart = async (productId: number, name: string) => {
+  const addToCart = async (productId: number) => {
     if (!authenticated) {
       const cartItems = readCartItems();
       const idAsString = String(productId);
@@ -104,10 +92,9 @@ export const FavoritesPage = () => {
             item.productId === idAsString ? { ...item, quantity: item.quantity + 1 } : item
           )
         : [...cartItems, { productId: idAsString, quantity: 1 }];
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(next));
+      writeGuestCart(next);
       setCartCount(next.reduce((sum, item) => sum + item.quantity, 0));
       window.dispatchEvent(new Event('nogaps:cart-updated'));
-      notifySuccess(`${name} sepete eklendi.`);
       return;
     }
 
@@ -115,7 +102,6 @@ export const FavoritesPage = () => {
       await cartApi.addToCart({ productId, quantity: 1 });
       const lines = await cartApi.listCart();
       setCartCount(lines.reduce((sum, line) => sum + line.quantity, 0));
-      notifySuccess(`${name} sepete eklendi.`);
     } catch (error: unknown) {
       notifyError(getApiErrorMessage(error, 'Sepete eklenemedi.'));
     }
@@ -176,7 +162,7 @@ export const FavoritesPage = () => {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => void addToCart(item.productId, item.name)}
+                    onClick={() => void addToCart(item.productId)}
                     className="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-400"
                   >
                     <ShoppingCart size={14} />

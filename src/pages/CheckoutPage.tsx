@@ -11,7 +11,7 @@ import type {
   PaymentProvider,
 } from '../types/checkout';
 import { getApiErrorMessage } from '../utils/apiError';
-import { notifyError, notifySuccess } from '../utils/notify';
+import { notifyError } from '../utils/notify';
 import type { CartLine } from '../types/cart';
 
 const PAYMENT_PROVIDERS: PaymentProvider[] = ['MOCK', 'IYZICO', 'STRIPE', 'PAYTR'];
@@ -25,6 +25,7 @@ export const CheckoutPage = () => {
   const [isPaying, setIsPaying] = useState(false);
   const [preview, setPreview] = useState<CheckoutPreviewResponse | null>(null);
   const [createdOrder, setCreatedOrder] = useState<OrderDetailResponse | null>(null);
+  const [successPopupMessage, setSuccessPopupMessage] = useState<string | null>(null);
 
   const [couponCode, setCouponCode] = useState('');
   const [installmentCount, setInstallmentCount] = useState(1);
@@ -112,7 +113,7 @@ export const CheckoutPage = () => {
       const order = await checkoutApi.createOrder(payload);
       setCreatedOrder(order);
       setCartLines([]);
-      notifySuccess(`Siparis olusturuldu: ${order.orderNumber}`);
+      setSuccessPopupMessage(`Siparis olusturuldu: ${order.orderNumber}`);
     } catch (error: unknown) {
       notifyError(getApiErrorMessage(error, 'Siparis olusturulamadi.'));
     } finally {
@@ -133,7 +134,7 @@ export const CheckoutPage = () => {
             }
           : prev
       );
-      notifySuccess(result.message || 'Odeme tamamlandi.');
+      setSuccessPopupMessage(result.message || 'Odeme tamamlandi.');
     } catch (error: unknown) {
       notifyError(getApiErrorMessage(error, 'Odeme basarisiz.'));
     } finally {
@@ -329,6 +330,20 @@ export const CheckoutPage = () => {
           )}
         </aside>
       </section>
+      {successPopupMessage && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/65 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-emerald-400/30 bg-slate-900 p-6 text-center shadow-2xl">
+            <p className="text-lg font-semibold text-white">{successPopupMessage}</p>
+            <button
+              type="button"
+              onClick={() => setSuccessPopupMessage(null)}
+              className="mt-5 inline-flex items-center justify-center rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
+            >
+              Tamam
+            </button>
+          </div>
+        </div>
+      )}
     </StoreLayout>
   );
 };

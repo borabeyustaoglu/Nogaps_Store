@@ -6,7 +6,7 @@ import { checkoutApi } from '../api/checkout';
 import { cartApi } from '../api/cart';
 import type { OrderDetailResponse, PaymentProvider } from '../types/checkout';
 import { getApiErrorMessage } from '../utils/apiError';
-import { notifyError, notifySuccess } from '../utils/notify';
+import { notifyError } from '../utils/notify';
 
 const PAYMENT_PROVIDERS: PaymentProvider[] = ['MOCK', 'IYZICO', 'STRIPE', 'PAYTR'];
 
@@ -18,6 +18,7 @@ export const OrderDetailPage = () => {
   const [isPaying, setIsPaying] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>('MOCK');
+  const [successPopupMessage, setSuccessPopupMessage] = useState<string | null>(null);
 
   const numericOrderId = useMemo(() => {
     const parsed = Number(orderId);
@@ -61,7 +62,7 @@ export const OrderDetailPage = () => {
         ? await checkoutApi.retryPayment(detail.orderId, { paymentProvider })
         : await checkoutApi.payOrder(detail.orderId, { paymentProvider });
       setDetail((prev) => (prev ? { ...prev, status: result.status } : prev));
-      notifySuccess(result.message || 'Odeme islemi tamamlandi.');
+      setSuccessPopupMessage(result.message || 'Odeme islemi tamamlandi.');
     } catch (error: unknown) {
       notifyError(getApiErrorMessage(error, 'Odeme islemi basarisiz.'));
     } finally {
@@ -204,6 +205,20 @@ export const OrderDetailPage = () => {
             </Link>
           </aside>
         </section>
+      )}
+      {successPopupMessage && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/65 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-emerald-400/30 bg-slate-900 p-6 text-center shadow-2xl">
+            <p className="text-lg font-semibold text-white">{successPopupMessage}</p>
+            <button
+              type="button"
+              onClick={() => setSuccessPopupMessage(null)}
+              className="mt-5 inline-flex items-center justify-center rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
+            >
+              Tamam
+            </button>
+          </div>
+        </div>
       )}
     </StoreLayout>
   );

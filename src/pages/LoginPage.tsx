@@ -12,6 +12,7 @@ import { authApi } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
 import { loginSchema, type LoginFormData } from '../types/schemas';
 import { appendAuditLog } from '../utils/auditLog';
+import { clearRemoteCart, mergeGuestCartIntoRemoteCart } from '../utils/guestCart';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -33,6 +34,20 @@ export const LoginPage = () => {
     try {
       const res = await authApi.login(data);
       setUser({ ...res.data, username: data.username });
+      const normalizedUsername = data.username.trim().toLowerCase();
+      if (normalizedUsername === 'demo.user') {
+        try {
+          await clearRemoteCart();
+        } catch {
+          // demo account cleanup is best-effort
+        }
+      }
+      try {
+        await mergeGuestCartIntoRemoteCart();
+      } catch {
+        // cart merge is best-effort
+      }
+      window.dispatchEvent(new Event('nogaps:cart-updated'));
       appendAuditLog({
         action: 'login',
         module: 'auth',

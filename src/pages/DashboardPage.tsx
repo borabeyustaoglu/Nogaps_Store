@@ -22,10 +22,9 @@ import { STORAGE_KEYS } from '../constants/storage';
 import { normalizeRole } from '../utils/roles';
 import api from '../api/axios';
 import type { CustomAxiosRequestConfig } from '../api/axios';
+import { readGuestCart } from '../utils/guestCart';
 
 const PRODUCTS_STORAGE_KEY = STORAGE_KEYS.products;
-const CART_STORAGE_KEY = STORAGE_KEYS.cart;
-
 type UnknownRecord = Record<string, unknown>;
 
 const asString = (value: unknown, fallback = ''): string =>
@@ -100,18 +99,11 @@ export const DashboardPage = () => {
   }, []);
 
   const cartStats = useMemo(() => {
-    try {
-      const raw = localStorage.getItem(CART_STORAGE_KEY);
-      if (!raw) return { lines: 0, quantity: 0 };
-      const parsed = JSON.parse(raw) as CartItem[];
-      if (!Array.isArray(parsed)) return { lines: 0, quantity: 0 };
-      return {
-        lines: parsed.length,
-        quantity: parsed.reduce((sum, item) => sum + item.quantity, 0),
-      };
-    } catch {
-      return { lines: 0, quantity: 0 };
-    }
+    const parsed = readGuestCart() as CartItem[];
+    return {
+      lines: parsed.length,
+      quantity: parsed.reduce((sum, item) => sum + item.quantity, 0),
+    };
   }, []);
 
   useEffect(() => {

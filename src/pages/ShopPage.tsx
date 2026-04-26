@@ -22,14 +22,14 @@ import { useAuthStore } from '../store/authStore';
 import { cartApi } from '../api/cart';
 import { getApiErrorMessage } from '../utils/apiError';
 import { favoritesApi } from '../api/favorites';
-import { notifyError, notifySuccess } from '../utils/notify';
+import { notifyError } from '../utils/notify';
 import { normalizeRole } from '../utils/roles';
 import {
   CATEGORY_SPEC_DEFINITIONS,
   type CategorySpecDefinition,
 } from '../constants/categorySpecs';
+import { readGuestCart, writeGuestCart } from '../utils/guestCart';
 
-const CART_STORAGE_KEY = STORAGE_KEYS.cart;
 const RECENTLY_VIEWED_PRODUCTS_KEY = STORAGE_KEYS.recentlyViewedProducts;
 const PRODUCTS_PER_PAGE = 12;
 
@@ -42,16 +42,7 @@ interface CartPreviewItem {
   imageUrl: string;
 }
 
-const readCartItems = (): CartItem[] => {
-  try {
-    const raw = localStorage.getItem(CART_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as CartItem[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
+const readCartItems = (): CartItem[] => readGuestCart();
 
 const hashString = (value: string) =>
   value.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -412,7 +403,6 @@ export const ShopPage = () => {
             module: 'cart',
             detail: `${product.name} added to cart`,
           });
-          notifySuccess(`${product.name} sepete eklendi.`);
         } catch (error: unknown) {
           notifyError(getApiErrorMessage(error, 'Sepete ekleme islemi basarisiz oldu.'));
         }
@@ -428,14 +418,13 @@ export const ShopPage = () => {
         )
       : [...cartItems, { productId: product.id, quantity: 1 }];
 
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(nextItems));
+    writeGuestCart(nextItems);
     window.dispatchEvent(new Event('nogaps:cart-updated'));
     appendAuditLog({
       action: 'add_item',
       module: 'cart',
       detail: `${product.name} added to cart`,
     });
-    notifySuccess(`${product.name} sepete eklendi.`);
   };
 
   const removeFromQuickCart = (item: CartPreviewItem) => {
@@ -451,7 +440,6 @@ export const ShopPage = () => {
         try {
           await cartApi.removeFromCart(item.productId as number);
           await syncRemoteCart();
-          notifySuccess(`${item.name} sepetten kaldirildi.`);
         } catch (error: unknown) {
           notifyError(getApiErrorMessage(error, 'Sepetten silme islemi basarisiz oldu.'));
         } finally {
@@ -462,9 +450,8 @@ export const ShopPage = () => {
     }
 
     const nextItems = readCartItems().filter((cartItem) => cartItem.productId !== item.key);
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(nextItems));
+    writeGuestCart(nextItems);
     window.dispatchEvent(new Event('nogaps:cart-updated'));
-    notifySuccess(`${item.name} sepetten kaldirildi.`);
   };
 
   const toggleFavorite = async (product: Product) => {
@@ -495,11 +482,9 @@ export const ShopPage = () => {
           next.delete(numericId);
           return next;
         });
-        notifySuccess(`${product.name} favorilerden kaldirildi.`);
       } else {
         await favoritesApi.addFavorite(numericId);
         setFavoriteProductIds((prev) => new Set(prev).add(numericId));
-        notifySuccess(`${product.name} favorilere eklendi.`);
       }
       window.dispatchEvent(new Event('nogaps:favorites-updated'));
     } catch (error: unknown) {
