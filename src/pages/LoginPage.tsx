@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, User, Lock, ArrowRight, Loader2 } from 'lucide-react';
-import { notifySuccess, notifyError } from '../utils/notify';
+import { notifyError } from '../utils/notify';
 import axios from 'axios';
 
 import { AuthLayout } from '../components/AuthLayout';
@@ -38,14 +38,23 @@ export const LoginPage = () => {
         module: 'auth',
         detail: `${data.username} logged in as ${res.data.role}`,
       });
-      notifySuccess(`Hos geldin, ${res.data.fullName}!`);
       const redirectTo = searchParams.get('redirect');
       navigate(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/dashboard');
     } catch (err: unknown) {
-      const message =
-        axios.isAxiosError(err) && err.response?.data?.message
-          ? err.response.data.message
-          : 'Giris basarisiz. Bilgilerinizi kontrol edin.';
+      let message = 'Kullanici adi veya sifre hatali.';
+      if (axios.isAxiosError(err)) {
+        const backendMessage =
+          typeof err.response?.data?.message === 'string' ? err.response.data.message : '';
+        const normalized = backendMessage.toLowerCase();
+        const isPasswordPolicyNoise =
+          normalized.includes('en az 8 karakter') ||
+          normalized.includes('buyuk harf') ||
+          normalized.includes('ozel karakter') ||
+          normalized.includes('sifre en az');
+        if (!isPasswordPolicyNoise && backendMessage.trim().length > 0 && err.response?.status !== 401) {
+          message = backendMessage;
+        }
+      }
       notifyError(message);
     } finally {
       setIsLoading(false);

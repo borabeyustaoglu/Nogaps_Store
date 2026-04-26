@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  CheckCircle2,
   Eye,
   EyeOff,
   User,
@@ -13,8 +14,9 @@ import {
   UserPlus,
   Loader2,
   ArrowLeft,
+  X,
 } from 'lucide-react';
-import { notifySuccess, notifyError } from '../utils/notify';
+import { notifyError } from '../utils/notify';
 import axios from 'axios';
 
 import { AuthLayout } from '../components/AuthLayout';
@@ -29,6 +31,7 @@ export const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
+  const [successPopupMessage, setSuccessPopupMessage] = useState<string | null>(null);
 
   const {
     register,
@@ -57,8 +60,7 @@ export const RegisterPage = () => {
         module: 'auth',
         detail: `${data.username} registered`,
       });
-      notifySuccess(res.data.message || 'Kayit basarili! Giris yapabilirsiniz.');
-      navigate('/login');
+      setSuccessPopupMessage(res.data.message || 'Kayit basarili! Giris yapabilirsiniz.');
     } catch (err: unknown) {
       const message =
         axios.isAxiosError(err) && err.response?.data?.message
@@ -72,6 +74,35 @@ export const RegisterPage = () => {
 
   return (
     <AuthLayout>
+      {successPopupMessage && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/65 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-emerald-500/40 bg-slate-950 p-6 shadow-2xl shadow-black/60">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={20} className="text-emerald-400" />
+                <p className="text-lg font-semibold text-white">Kayit Tamamlandi</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSuccessPopupMessage(null)}
+                className="rounded-full p-2 text-slate-400 transition hover:text-white"
+                aria-label="Pop-up kapat"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-slate-300">{successPopupMessage}</p>
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-brand-400"
+            >
+              Giris Sayfasina Git
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-7">
         <div className="space-y-2 animate-fade-up" style={{ opacity: 0 }}>
           <h2 className="font-display text-4xl font-bold text-white">Hesap olusturun</h2>
