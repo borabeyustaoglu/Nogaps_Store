@@ -154,10 +154,18 @@ export const CartPage = () => {
     if (isCartSaving) return;
     setIsCartSaving(true);
     try {
+      const currentQuantity =
+        remoteCartLines.find((line) => line.productId === productId)?.quantity ?? 0;
+
       if (nextQuantity <= 0) {
         await cartApi.removeFromCart(productId);
-      } else {
+      } else if (nextQuantity > currentQuantity) {
+        await cartApi.addToCart({ productId, quantity: nextQuantity - currentQuantity });
+      } else if (nextQuantity < currentQuantity) {
+        await cartApi.removeFromCart(productId);
         await cartApi.addToCart({ productId, quantity: nextQuantity });
+      } else {
+        return;
       }
       await refreshRemoteCart();
     } catch (error: unknown) {

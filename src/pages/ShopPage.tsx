@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
   Heart,
@@ -103,6 +104,7 @@ export const ShopPage = () => {
   const [isRemovingCartItem, setIsRemovingCartItem] = useState<string | null>(null);
   const [favoriteProductIds, setFavoriteProductIds] = useState<Set<number>>(new Set());
   const [favoriteBusyId, setFavoriteBusyId] = useState<number | null>(null);
+  const [recentlyAddedProductId, setRecentlyAddedProductId] = useState<string | null>(null);
   const [flashNow, setFlashNow] = useState(Date.now());
   const { user, isAuthenticated } = useAuthStore();
   const authenticated = isAuthenticated();
@@ -116,6 +118,16 @@ export const ShopPage = () => {
       window.clearInterval(timer);
     };
   }, []);
+
+  useEffect(() => {
+    if (!recentlyAddedProductId) return;
+    const timer = window.setTimeout(() => {
+      setRecentlyAddedProductId(null);
+    }, 1200);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [recentlyAddedProductId]);
 
   useEffect(() => {
     let active = true;
@@ -403,6 +415,7 @@ export const ShopPage = () => {
             module: 'cart',
             detail: `${product.name} added to cart`,
           });
+          setRecentlyAddedProductId(product.id);
         } catch (error: unknown) {
           notifyError(getApiErrorMessage(error, 'Sepete ekleme islemi basarisiz oldu.'));
         }
@@ -420,6 +433,7 @@ export const ShopPage = () => {
 
     writeGuestCart(nextItems);
     window.dispatchEvent(new Event('nogaps:cart-updated'));
+    setRecentlyAddedProductId(product.id);
     appendAuditLog({
       action: 'add_item',
       module: 'cart',
@@ -725,15 +739,24 @@ export const ShopPage = () => {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => addToCart(product)}
-                      disabled={product.stock === 0}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:bg-slate-700/70"
-                    >
-                      <Plus size={14} />
-                      Sepete ekle
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => addToCart(product)}
+                        disabled={product.stock === 0}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:bg-slate-700/70"
+                      >
+                        {recentlyAddedProductId === product.id ? (
+                          <>
+                            <Check size={14} className="animate-bounce" />
+                            Eklendi
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={14} />
+                            Sepete ekle
+                          </>
+                        )}
+                      </button>
                     <Link
                       to={`/product/${product.id}`}
                       className="inline-flex w-full items-center justify-center rounded-xl border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:border-brand-500/40 hover:text-white"
@@ -786,15 +809,24 @@ export const ShopPage = () => {
                 >
                   <p className="text-base font-semibold text-slate-100">{product.name}</p>
                   <p className="mt-1 text-sm text-slate-400">TRY {product.price.toLocaleString('tr-TR')}</p>
-                  <button
-                    type="button"
-                    onClick={() => addToCart(product)}
-                    disabled={product.stock === 0}
-                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-2 text-xs font-semibold text-brand-200 transition hover:bg-brand-500/20 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
-                  >
-                    <Plus size={14} />
-                    Sepete ekle
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => addToCart(product)}
+                      disabled={product.stock === 0}
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-2 text-xs font-semibold text-brand-200 transition hover:bg-brand-500/20 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+                    >
+                      {recentlyAddedProductId === product.id ? (
+                        <>
+                          <Check size={14} className="animate-bounce" />
+                          Eklendi
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={14} />
+                          Sepete ekle
+                        </>
+                      )}
+                    </button>
                 </div>
               ))}
             </div>
