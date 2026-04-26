@@ -4,11 +4,18 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { StoreLayout } from '../components/StoreLayout';
 import { checkoutApi } from '../api/checkout';
 import { cartApi } from '../api/cart';
-import type { OrderDetailResponse, PaymentProvider } from '../types/checkout';
+import type { OrderDetailResponse, PaymentProvider, PaymentRequest } from '../types/checkout';
 import { getApiErrorMessage } from '../utils/apiError';
 import { notifyError } from '../utils/notify';
 
 const PAYMENT_PROVIDERS: PaymentProvider[] = ['MOCK', 'IYZICO', 'STRIPE', 'PAYTR'];
+const IYZICO_SANDBOX_TEST_CARD = {
+  cardHolderName: 'John Doe',
+  cardNumber: '5528790000000008',
+  expireMonth: '12',
+  expireYear: '2030',
+  cvc: '123',
+};
 
 export const OrderDetailPage = () => {
   const { orderId } = useParams();
@@ -18,6 +25,11 @@ export const OrderDetailPage = () => {
   const [isPaying, setIsPaying] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [paymentProvider, setPaymentProvider] = useState<PaymentProvider>('MOCK');
+  const [cardHolderName, setCardHolderName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expireMonth, setExpireMonth] = useState('');
+  const [expireYear, setExpireYear] = useState('');
+  const [cvc, setCvc] = useState('');
   const [successPopupMessage, setSuccessPopupMessage] = useState<string | null>(null);
 
   const numericOrderId = useMemo(() => {
@@ -54,13 +66,67 @@ export const OrderDetailPage = () => {
 
   const canPay = detail?.status === 'PENDING_PAYMENT' || detail?.status === 'FAILED';
 
+  const validateIyzicoPayment = () => {
+    if (paymentProvider !== 'IYZICO') return true;
+
+    const holder = cardHolderName.trim();
+    const numberDigits = cardNumber.replace(/\D/g, '');
+    const monthDigits = expireMonth.replace(/\D/g, '');
+    const yearDigits = expireYear.replace(/\D/g, '');
+    const cvcDigits = cvc.replace(/\D/g, '');
+
+    if (!holder || !numberDigits || !monthDigits || !yearDigits || !cvcDigits) {
+      notifyError('Iyzico kart bilgilerini eksiksiz doldurun.');
+      return false;
+    }
+    if (numberDigits.length < 12 || numberDigits.length > 19) {
+      notifyError('Kart numarasi gecersiz.');
+      return false;
+    }
+    const monthNumber = Number(monthDigits);
+    if (!Number.isInteger(monthNumber) || monthNumber < 1 || monthNumber > 12) {
+      notifyError('Kart son kullanma ayi gecersiz.');
+      return false;
+    }
+    if (!(yearDigits.length === 2 || yearDigits.length === 4)) {
+      notifyError('Kart son kullanma yili gecersiz.');
+      return false;
+    }
+    if (cvcDigits.length < 3 || cvcDigits.length > 4) {
+      notifyError('CVC bilgisi gecersiz.');
+      return false;
+    }
+    return true;
+  };
+
+  const buildPaymentPayload = (): PaymentRequest => {
+    if (paymentProvider !== 'IYZICO') {
+      return { paymentProvider };
+    }
+
+    const monthNumber = Number(expireMonth.replace(/\D/g, ''));
+    const normalizedMonth = String(monthNumber).padStart(2, '0');
+    const rawYear = expireYear.replace(/\D/g, '');
+    const normalizedYear = rawYear.length === 2 ? `20${rawYear}` : rawYear;
+
+    return {
+      paymentProvider,
+      cardHolderName: cardHolderName.trim(),
+      cardNumber: cardNumber.replace(/\D/g, ''),
+      expireMonth: normalizedMonth,
+      expireYear: normalizedYear,
+      cvc: cvc.replace(/\D/g, ''),
+    };
+  };
+
   const runPayment = async (retry: boolean) => {
     if (!detail || isPaying) return;
+    if (!validateIyzicoPayment()) return;
     setIsPaying(true);
     try {
       const result = retry
-        ? await checkoutApi.retryPayment(detail.orderId, { paymentProvider })
-        : await checkoutApi.payOrder(detail.orderId, { paymentProvider });
+        ? await checkoutApi.retryPayment(detail.orderId, buildPaymentPayload())
+        : await checkoutApi.payOrder(detail.orderId, buildPaymentPayload());
       setDetail((prev) => (prev ? { ...prev, status: result.status } : prev));
       setSuccessPopupMessage(result.message || 'Odeme islemi tamamlandi.');
     } catch (error: unknown) {
@@ -175,6 +241,53 @@ export const OrderDetailPage = () => {
                     </option>
                   ))}
                 </select>
+                {paymentProvider === 'IYZICO' && (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <input
+                      value={cardHolderName}
+                      onChange={(event) => setCardHolderName(event.target.value)}
+                      placeholder="Kart sahibi"
+                      className="sm:col-span-2 rounded-xl border border-slate-700/70 bg-black/40 px-3 py-2.5 text-sm text-slate-100 outline-none"
+                    />
+                    <input
+                      value={cardNumber}
+                      onChange={(event) => setCardNumber(event.target.value)}
+                      placeholder="Kart numarasi"
+                      className="sm:col-span-2 rounded-xl border border-slate-700/70 bg-black/40 px-3 py-2.5 text-sm text-slate-100 outline-none"
+                    />
+                    <input
+                      value={expireMonth}
+                      onChange={(event) => setExpireMonth(event.target.value)}
+                      placeholder="AA"
+                      className="rounded-xl border border-slate-700/70 bg-black/40 px-3 py-2.5 text-sm text-slate-100 outline-none"
+                    />
+                    <input
+                      value={expireYear}
+                      onChange={(event) => setExpireYear(event.target.value)}
+                      placeholder="YYYY"
+                      className="rounded-xl border border-slate-700/70 bg-black/40 px-3 py-2.5 text-sm text-slate-100 outline-none"
+                    />
+                    <input
+                      value={cvc}
+                      onChange={(event) => setCvc(event.target.value)}
+                      placeholder="CVC"
+                      className="rounded-xl border border-slate-700/70 bg-black/40 px-3 py-2.5 text-sm text-slate-100 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCardHolderName(IYZICO_SANDBOX_TEST_CARD.cardHolderName);
+                        setCardNumber(IYZICO_SANDBOX_TEST_CARD.cardNumber);
+                        setExpireMonth(IYZICO_SANDBOX_TEST_CARD.expireMonth);
+                        setExpireYear(IYZICO_SANDBOX_TEST_CARD.expireYear);
+                        setCvc(IYZICO_SANDBOX_TEST_CARD.cvc);
+                      }}
+                      className="rounded-xl border border-amber-400/40 bg-amber-500/10 px-3 py-2.5 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/20 sm:col-span-2"
+                    >
+                      Iyzico sandbox test kartini doldur
+                    </button>
+                  </div>
+                )}
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
                     type="button"

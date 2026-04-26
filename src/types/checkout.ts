@@ -68,6 +68,11 @@ export interface OrderDetailResponse {
 
 export interface PaymentRequest {
   paymentProvider?: PaymentProvider;
+  cardHolderName?: string;
+  cardNumber?: string;
+  expireMonth?: string;
+  expireYear?: string;
+  cvc?: string;
 }
 
 export interface PaymentResultResponse {
